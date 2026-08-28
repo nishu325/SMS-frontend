@@ -1,0 +1,322 @@
+<div class="student-manager-container">
+  
+  <!-- Toast Notification -->
+  <div *ngIf="toastMessage" class="toast-alert" [ngClass]="'toast-' + toastType">
+    <span class="toast-icon">
+      <ng-container [ngSwitch]="toastType">
+        <span *ngSwitchCase="'success'">✓</span>
+        <span *ngSwitchCase="'error'">✕</span>
+        <span *ngSwitchDefault>ℹ</span>
+      </ng-container>
+    </span>
+    <span class="toast-text">{{ toastMessage }}</span>
+    <button class="toast-close" (click)="toastMessage = null">×</button>
+  </div>
+
+  <!-- Dashboard Overview Cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon bg-indigo">🎓</div>
+      <div class="stat-info">
+        <span class="stat-label">Total Enrolled</span>
+        <h3 class="stat-value">{{ totalStudentsCount }}</h3>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon bg-emerald">✅</div>
+      <div class="stat-info">
+        <span class="stat-label">Active Status</span>
+        <h3 class="stat-value">{{ activeStudentsCount }}</h3>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon bg-amber">⭐</div>
+      <div class="stat-info">
+        <span class="stat-label">Average GPA</span>
+        <h3 class="stat-value">{{ averageGpa }}</h3>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon bg-purple">🏛️</div>
+      <div class="stat-info">
+        <span class="stat-label">Departments</span>
+        <h3 class="stat-value">{{ departmentCount }}</h3>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toolbar & Filters -->
+  <div class="toolbar">
+    <div class="search-filter-group">
+      <!-- Search Input -->
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input 
+          type="text" 
+          placeholder="Search by name, email, department..." 
+          [(ngModel)]="searchTerm" 
+          (input)="onSearchChange()"
+          class="form-control search-input"
+        />
+      </div>
+
+      <!-- Department Filter -->
+      <div class="filter-box">
+        <label class="filter-label">Department:</label>
+        <select [(ngModel)]="selectedDepartment" (change)="onFilterChange()" class="form-select">
+          <option value="All">All Departments</option>
+          <option *ngFor="let dept of departments" [value]="dept">{{ dept }}</option>
+        </select>
+      </div>
+
+      <!-- Status Filter -->
+      <div class="filter-box">
+        <label class="filter-label">Status:</label>
+        <select [(ngModel)]="statusFilter" (change)="onFilterChange()" class="form-select">
+          <option value="All">All Status</option>
+          <option value="Active">Active Only</option>
+          <option value="Inactive">Inactive Only</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Actions & View Switcher -->
+    <div class="toolbar-actions">
+      <div class="view-toggle">
+        <button 
+          class="btn-toggle" 
+          [class.active]="viewMode === 'grid'" 
+          (click)="viewMode = 'grid'"
+          title="Grid View"
+        >
+          📱 Grid
+        </button>
+        <button 
+          class="btn-toggle" 
+          [class.active]="viewMode === 'table'" 
+          (click)="viewMode = 'table'"
+          title="Table View"
+        >
+          📄 Table
+        </button>
+      </div>
+
+      <button class="btn btn-primary" (click)="openCreateModal()">
+        <span class="btn-icon">+</span> Add New Student
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading Spinner -->
+  <div *ngIf="isLoading" class="loading-state">
+    <div class="spinner"></div>
+    <p>Loading student data from server...</p>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!isLoading && filteredStudents.length === 0" class="empty-state">
+    <div class="empty-icon">📂</div>
+    <h3>No Student Records Found</h3>
+    <p>Try adjusting your search query or filter settings.</p>
+    <button class="btn btn-secondary" (click)="searchTerm = ''; selectedDepartment = 'All'; statusFilter = 'All'; applyLocalFilters();">Reset Filters</button>
+  </div>
+
+  <!-- GRID VIEW -->
+  <div *ngIf="!isLoading && filteredStudents.length > 0 && viewMode === 'grid'" class="students-grid">
+    <div *ngFor="let student of filteredStudents" class="student-card">
+      <div class="card-header">
+        <div class="avatar bg-gradient">
+          {{ student.firstName[0] }}{{ student.lastName[0] }}
+        </div>
+        <div class="status-badge" [class.active-badge]="student.isActive" [class.inactive-badge]="!student.isActive">
+          {{ student.isActive ? 'Active' : 'Inactive' }}
+        </div>
+      </div>
+
+      <div class="card-body">
+        <h4 class="student-name">{{ student.firstName }} {{ student.lastName }}</h4>
+        <p class="student-email">📧 {{ student.email }}</p>
+        <p class="student-phone">📞 {{ student.phoneNumber || 'N/A' }}</p>
+
+        <div class="info-row">
+          <span class="dept-badge">{{ student.department }}</span>
+          <span class="gpa-badge" [ngClass]="getGpaBadgeClass(student.gpa)">
+            GPA {{ student.gpa | number:'1.2-2' }}
+          </span>
+        </div>
+      </div>
+
+      <div class="card-footer">
+        <button class="btn-action edit-btn" (click)="openEditModal(student)" title="Edit Student">
+          ✏️ Edit
+        </button>
+        <button class="btn-action delete-btn" (click)="confirmDelete(student)" title="Delete Student">
+          🗑️ Delete
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLE VIEW -->
+  <div *ngIf="!isLoading && filteredStudents.length > 0 && viewMode === 'table'" class="table-container">
+    <table class="student-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Student Name</th>
+          <th>Email & Phone</th>
+          <th>Department</th>
+          <th>GPA</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let student of filteredStudents">
+          <td class="id-col">#{{ student.id }}</td>
+          <td>
+            <div class="table-user">
+              <div class="avatar-sm">{{ student.firstName[0] }}{{ student.lastName[0] }}</div>
+              <span class="table-name">{{ student.firstName }} {{ student.lastName }}</span>
+            </div>
+          </td>
+          <td>
+            <div class="email-sub">{{ student.email }}</div>
+            <div class="phone-sub">{{ student.phoneNumber }}</div>
+          </td>
+          <td>
+            <span class="dept-badge">{{ student.department }}</span>
+          </td>
+          <td>
+            <span class="gpa-badge" [ngClass]="getGpaBadgeClass(student.gpa)">
+              {{ student.gpa | number:'1.2-2' }}
+            </span>
+          </td>
+          <td>
+            <span class="status-pill" [class.status-active]="student.isActive" [class.status-inactive]="!student.isActive">
+              {{ student.isActive ? 'Active' : 'Inactive' }}
+            </span>
+          </td>
+          <td class="actions-col">
+            <button class="btn-icon-action" (click)="openEditModal(student)" title="Edit">✏️</button>
+            <button class="btn-icon-action text-danger" (click)="confirmDelete(student)" title="Delete">🗑️</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- CREATE / EDIT MODAL -->
+  <div *ngIf="isModalOpen" class="modal-overlay" (click)="closeModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>{{ isEditMode ? 'Edit Student Record' : 'Add New Student' }}</h3>
+        <button class="modal-close" (click)="closeModal()">×</button>
+      </div>
+
+      <form [formGroup]="studentForm" (ngSubmit)="saveStudent()" class="modal-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label>First Name *</label>
+            <input type="text" formControlName="firstName" class="form-control" placeholder="John" />
+            <div *ngIf="studentForm.get('firstName')?.touched && studentForm.get('firstName')?.invalid" class="form-error">
+              First name is required.
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Last Name *</label>
+            <input type="text" formControlName="lastName" class="form-control" placeholder="Doe" />
+            <div *ngIf="studentForm.get('lastName')?.touched && studentForm.get('lastName')?.invalid" class="form-error">
+              Last name is required.
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Email Address *</label>
+            <input type="email" formControlName="email" class="form-control" placeholder="john.doe@university.edu" />
+            <div *ngIf="studentForm.get('email')?.touched && studentForm.get('email')?.invalid" class="form-error">
+              Valid email is required.
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Phone Number *</label>
+            <input type="text" formControlName="phoneNumber" class="form-control" placeholder="+1 (555) 000-0000" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Department *</label>
+            <select formControlName="department" class="form-select">
+              <option *ngFor="let dept of departments" [value]="dept">{{ dept }}</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>GPA (0.0 - 4.0) *</label>
+            <input type="number" step="0.01" min="0" max="4.0" formControlName="gpa" class="form-control" />
+            <div *ngIf="studentForm.get('gpa')?.touched && studentForm.get('gpa')?.invalid" class="form-error">
+              GPA must be between 0.00 and 4.00.
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Date of Birth</label>
+            <input type="date" formControlName="dateOfBirth" class="form-control" />
+          </div>
+
+          <div class="form-group">
+            <label>Enrollment Date</label>
+            <input type="date" formControlName="enrollmentDate" class="form-control" />
+          </div>
+        </div>
+
+        <div class="form-checkbox-group">
+          <label class="checkbox-container">
+            <input type="checkbox" formControlName="isActive" />
+            <span class="checkmark"></span>
+            Active Student Status
+          </label>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            {{ isEditMode ? 'Save Changes' : 'Create Student' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- DELETE CONFIRMATION MODAL -->
+  <div *ngIf="isDeleteModalOpen" class="modal-overlay" (click)="closeDeleteModal()">
+    <div class="modal-card modal-delete" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="text-danger">Confirm Deletion</h3>
+        <button class="modal-close" (click)="closeDeleteModal()">×</button>
+      </div>
+
+      <div class="modal-body text-center">
+        <div class="warning-icon">⚠️</div>
+        <p>Are you sure you want to delete student <strong>{{ studentToDelete?.firstName }} {{ studentToDelete?.lastName }}</strong> (#{{ studentToDelete?.id }})?</p>
+        <p class="sub-warning">This action cannot be undone.</p>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeDeleteModal()">Cancel</button>
+        <button class="btn btn-danger" (click)="deleteStudent()">Delete Record</button>
+      </div>
+    </div>
+  </div>
+
+</div>
