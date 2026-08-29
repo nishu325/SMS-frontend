@@ -1,4 +1,4 @@
 export const environment = {
   production: false,
-  apiUrl: 'https://demo325-b2aecfc4f5bmhndd.centralus-01.azurewebsites.net/api'
+  apiUrl: 'https://demo1-e8hueud5hvdeg3cb.centralus-01.azurewebsites.net/api'
 };
