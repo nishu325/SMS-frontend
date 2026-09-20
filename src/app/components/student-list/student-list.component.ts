@@ -50,6 +50,7 @@ export class StudentListComponent implements OnInit {
     this.loadDepartments();
   }
 
+    // TODO: Add new function for scan user data.
   private getdata(){
   }
 
