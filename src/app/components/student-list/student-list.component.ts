@@ -43,9 +43,14 @@ export class StudentListComponent implements OnInit {
     this.initForm();
   }
 
+  // TODO: Add new function for scan user data.
+
   ngOnInit(): void {
     this.loadStudents();
     this.loadDepartments();
+  }
+
+  private getdata(){
   }
 
   private initForm(): void {
