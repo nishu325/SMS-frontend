@@ -52,6 +52,7 @@ export class StudentListComponent implements OnInit {
 
     // TODO: Add new function for scan user data.
   private getdata(){
+    var data='';
   }
 
   private initForm(): void {
